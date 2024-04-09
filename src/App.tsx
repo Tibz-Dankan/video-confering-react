@@ -7,9 +7,9 @@ const App: React.FC = () => {
   const [text, setText] = useState<string>("");
   const [messages, setMessages] = useState<string[]>([]);
   let [user, setUser] = useState<string | null>(null);
-  // const socket = useRef<Socket | null>(null);
   const socket = useRef<Socket | null>(io("http://localhost:3030"));
   const peer = useRef<Peer | null>(null);
+  const effectRan = useRef(false);
 
   useEffect(() => {
     const initializeMediaStream = async () => {
@@ -22,7 +22,6 @@ const App: React.FC = () => {
         const video = document.createElement("video");
         addVideoStream(video, stream);
 
-        // socket.current = io("http://localhost:3030");
         peer.current = new Peer({
           host: "127.0.0.1",
           port: 3030,
@@ -121,22 +120,24 @@ const App: React.FC = () => {
       }
     };
 
-    initializeMediaStream();
-
-    return () => {
-      // Clean up resources
-      // if (myVideoStream) {
-      //   myVideoStream.getTracks().forEach((track) => {
-      //     track.stop();
-      //   });
-      // }
-      // if (socket.current) {
-      //   socket.current.disconnect();
-      // }
-      // if (peer.current) {
-      //   peer.current.destroy();
-      // }
-    };
+    if (effectRan.current === false) {
+      initializeMediaStream();
+      return () => {
+        effectRan.current = true;
+        // Clean up resources
+        // if (myVideoStream) {
+        //   myVideoStream.getTracks().forEach((track) => {
+        //     track.stop();
+        //   });
+        // }
+        // if (socket.current) {
+        //   socket.current.disconnect();
+        // }
+        // if (peer.current) {
+        //   peer.current.destroy();
+        // }
+      };
+    }
   }, [user]);
 
   const sendMessage = () => {
