@@ -8,8 +8,36 @@ const App: React.FC = () => {
   const [text, setText] = useState<string>("");
   const [messages, setMessages] = useState<string[]>([]);
   const [user, setUser] = useState<string | null>(null);
-  const socket = useRef<Socket | null>(null);
-  const peer = useRef<Peer | null>(null);
+  const socket: Socket = io("http://localhost:3030");
+  const peer = new Peer({
+    host: "127.0.0.1",
+    port: 3030,
+    path: "/peerjs",
+    config: {
+      iceServers: [
+        { urls: "stun:stun01.sipphone.com" },
+        { urls: "stun:stun.ekiga.net" },
+        { url: "stun:stunserver.org" },
+        { url: "stun:stun.softjoys.com" },
+        { url: "stun:stun.voiparound.com" },
+        { url: "stun:stun.voipbuster.com" },
+        { url: "stun:stun.voipstunt.com" },
+        { url: "stun:stun.voxgratia.org" },
+        { url: "stun:stun.xten.com" },
+        {
+          url: "turn:192.158.29.39:3478?transport=udp",
+          credential: "JZEOEt2V3Qb0y27GRntt2u2PAYA=",
+          username: "28224511:1379330808",
+        },
+        {
+          url: "turn:192.158.29.39:3478?transport=tcp",
+          credential: "JZEOEt2V3Qb0y27GRntt2u2PAYA=",
+          username: "28224511:1379330808",
+        },
+      ],
+    },
+    debug: 3,
+  });
 
   useEffect(() => {
     const initializeMediaStream = async () => {
@@ -22,43 +50,13 @@ const App: React.FC = () => {
         const video = document.createElement("video");
         addVideoStream(video, stream);
 
-        socket.current = io("http://localhost:3030");
-        peer.current = new Peer({
-          host: "127.0.0.1",
-          port: 3030,
-          path: "/peerjs",
-          config: {
-            iceServers: [
-              { urls: "stun:stun01.sipphone.com" },
-              { urls: "stun:stun.ekiga.net" },
-              { url: "stun:stunserver.org" },
-              { url: "stun:stun.softjoys.com" },
-              { url: "stun:stun.voiparound.com" },
-              { url: "stun:stun.voipbuster.com" },
-              { url: "stun:stun.voipstunt.com" },
-              { url: "stun:stun.voxgratia.org" },
-              { url: "stun:stun.xten.com" },
-              {
-                url: "turn:192.158.29.39:3478?transport=udp",
-                credential: "JZEOEt2V3Qb0y27GRntt2u2PAYA=",
-                username: "28224511:1379330808",
-              },
-              {
-                url: "turn:192.158.29.39:3478?transport=tcp",
-                credential: "JZEOEt2V3Qb0y27GRntt2u2PAYA=",
-                username: "28224511:1379330808",
-              },
-            ],
-          },
-          debug: 3,
-        });
-
-        peer.current.on("open", (id) => {
+        peer.on("open", (id) => {
           console.log("my id is" + id);
-          socket.current?.emit("join-room", "ROOM_ID", id, "user-123");
+          console.log("Joining room....");
+          socket.emit("join-room", "ROOM_ID", id, "user-123");
         });
 
-        peer.current.on("call", (call) => {
+        peer.on("call", (call) => {
           console.log("someone call me");
           call.answer(stream);
           const video = document.createElement("video");
@@ -67,20 +65,17 @@ const App: React.FC = () => {
           });
         });
 
-        socket.current.on("user-connected", (userId: string) => {
+        socket.on("user-connected", (userId: string) => {
           console.log("New user connected::::=>", userId);
           connectToNewUser(userId, stream);
         });
 
-        socket.current.on(
-          "createMessage",
-          (message: string, userName: string) => {
-            setMessages((prevMessages) => [
-              ...prevMessages,
-              `${userName === user ? "me" : userName}: ${message}`,
-            ]);
-          }
-        );
+        socket.on("createMessage", (message: string, userName: string) => {
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            `${userName === user ? "me" : userName}: ${message}`,
+          ]);
+        });
       } catch (error) {
         console.error("Error accessing media devices:", error);
       }
@@ -98,7 +93,7 @@ const App: React.FC = () => {
 
     const connectToNewUser = (userId: string, stream: MediaStream) => {
       console.log("I call someone" + userId);
-      const call = peer.current?.call(userId, stream);
+      const call = peer.call(userId, stream);
       if (call) {
         const video = document.createElement("video");
         call.on("stream", (userVideoStream) => {
@@ -123,11 +118,11 @@ const App: React.FC = () => {
       //   peer.current.destroy();
       // }
     };
-  }, [user]);
+  }, [socket, peer]);
 
   const sendMessage = () => {
     if (text.trim() !== "") {
-      socket.current?.emit("message", text.trim());
+      socket.emit("message", text.trim());
       setText("");
     }
   };
